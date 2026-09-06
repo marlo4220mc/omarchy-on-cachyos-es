@@ -1,129 +1,160 @@
-# omarchy-on-cachyos
+# Omarchy en Español para CachyOS
 
-- UPDATE 20-May-2026: The install script now includes interactive version selection for choosing between Stable releases and Bleeding Edge.
-- UPDATE 1-October-2025: The install script has been updated to support Omarchy 3.0+ out of the box.
+Instalador de **Omarchy** sobre **CachyOS** que además aplica la capa de idioma **"Omarchy en Español"** (`omarchy-es`).
 
-## 1. Introduction
+Basado en el flujo de `omarchy-on-cachyos` (compatibilidad con CachyOS + parches de seguridad y arranque), a lo que se le agregó la traducción completa de la interfaz al español.
 
-This project provides an installation script for implementing DHH's Omarchy configuration on top of CachyOS. Omarchy is an 'opinionated' desktop setup, based on Hyprland that emphasizes simplicity and productivity, while CachyOS offers a performance-optimized Arch Linux distribution.
+Omarchy es un escritorio "opinionated" basado en Hyprland que prioriza simplicidad y productividad; CachyOS es una distribución Arch Linux optimizada para rendimiento.
 
-## 2. What This Script Does and Does Not Do
+---
 
-This installation script does the following three things:
+## ¿Qué instala?
 
-  1) Prompts for and fetches your preferred version of Omarchy (Stable tags or Bleeding Edge)
-  2) Makes adjustments to the Omarchy install scripts to support installation on CachyOS
-  3) Launches the installation of Omarchy on an already setup CachyOS system
-  4) Installs and configures NVIDIA 580xx proprietary drivers
+1. **Omarchy** (v3.x desde fuente o v4.x desde los paquetes `omarchy`, `omarchy-settings`, `omarchy-nvim`).
+2. **La capa en español `omarchy-es`**: los **22 plugins** de la barra y el menú traducidos al español (`marlo4220.*`), la **extensión del menú** (`omarchy-menu.jsonc`) y `shell.json` con la barra en español.
+3. Los **guardias de arranque** (mkinitcpio + limine) para no romper el arrancador de CachyOS.
+4. **SDDM** con autologin hacia la sesión `omarchy.desktop`.
+5. Configuración de **NVIDIA** respetuosa con el driver que ya tenga CachyOS (no fuerza ni pinnea ninguna versión).
 
-This script does not:
+---
 
- 1) Install CachyOS or any other Linux operating system
- 2) Partition, format, or encrypt hard disks
- 3) Install or configure a boot loader
- 5) Install or configure a login display manager
+## ¿Qué hace el script?
 
-All of the above need to be done when you install CachyOS. 
+- Detecta y soporta **Omarchy v3** (instalación desde fuente) y **v4** (paquetes pacman).
+- Aplica las correcciones de compatibilidad con CachyOS:
+  - no pisa `/etc/pacman.conf` ni el mirrorlist (evita el riesgo de `partial upgrade`),
+  - no toca el arrancador de CachyOS (limine-snapper-sync) ni recompila el initramfs,
+  - reemplaza la lógica de NVIDIA por una versión que **respeta el driver existente**,
+  - configura NetworkManager con backend `iwd`,
+  - pinnea `walker` al repo de omarchy.
+- Instala los **guardias de arranque** antes de cualquier paquete `omarchy-settings`.
+- Configura **SDDM** (autologin + `omarchy.desktop`), sin romper la sesión UWSM.
+- Al final aplica la **capa en español** sobre el usuario de escritorio:
+  plugins `marlo4220.*`, menú y `shell.json`.
 
-## 3. Important Notes
+### Seguridad
 
-This script (and README.md) is intended primarily for the experienced Arch Linux user. The author of this README.md assumes the reader is comfortable using a shell/command line and is familiar with Arch specific terms such as AUR.
+- El script auxiliar de sistema usa `mktemp` + `chmod 600` y se elimina al terminar: **no** se ejecuta con `sudo bash` ningún archivo en una ruta predecible de `/tmp`.
+- Los archivos de la capa en español quedan con propietario el usuario de escritorio (aunque el instalador corra como root).
 
-The philosophy behind this script is to produce a strong and stable blend of CachyOS and Omarchy that changes as little as possible between the two. This script does not add software or make configuration changes outside of what CachyOS or Omarchy provide as default, except when such software or configurations provided by CachyOS and Omarchy are in conflict. In these cases, the script will choose the following:
+---
 
-1. AUR helper: CachyOS uses Paru by default while Omarchy uses Yay. This script opts for Yay and will install it if not already installed.
+## Prerrequisitos
 
-2. Shell: CachyOS uses the Fish shell by default while Omarchy uses Bash. This script will keep Fish as the default interactive shell.
+Instalar primero **CachyOS**, con estas opciones:
 
-3. TLDR implementation: CachyOS installs Tealdeer by default, which is a TLDR implementation written in Rust. This script will preserve use of Tealdeer.
+1. **Sistema de archivos**: `BTRFS` + **Snapper** (requerido para que Omarchy funcione).
+2. **Shell**: `Fish` (por defecto en CachyOS).
+3. **Escritorio**: mínimo sin entorno, o el *Hyprland Desktop Environment* de CachyOS. **No** instalar GNOME ni KDE.
+4. Driver gráfico: en equipos NVIDIA que CachyOS ya maneja el driver; en equipos con gráficos integrados (p. ej. AMD) el instalador lo detecta y salta la parte NVIDIA automáticamente.
 
-4. Mise: Omarchy will setup Mise to run automatically via mise-activate. This script will supply the right mise-activate command for the fish shell.
+---
 
-5. Login System: As a distribution, Omarchy skips installation of a login display manager. Instead, Hyprland autostarts and password protection is provided upon boot by the LUKS full disk encryption service. This script, however, assumes a display manager is installed. (Note: this script does not install a display manager, but also does not configure Hyprland to start automatically if a display manager is not installed.)
-
-6. Full Disk Encryption: As a distribution, Omarchy automatically turns on full disk encryption via LUKS. This script, however, leaves this decision up to the user. CachyOS can be installed with or without full disk encryption, and this script will install Omarchy on either setup.
-
-7. NVIDIA Drivers: *By default, CachyOS and Omarchy may attempt to use the latest NVIDIA drivers with open kernel modules. This script does **not** downgrade or pin any driver: it detects whatever NVIDIA driver CachyOS already has installed and respects it. Only if no NVIDIA driver is present at all does it install one via CachyOS's* `chwd` *tool.*
-
-## 4. Pre-Requisites
-
-IMPORTANT: This script does not install CachyOS. You must do that separately (and first.) This script is intended to be run on a fresh installation of CachyOS with the following configuration choices made: (Note, for information on installing CachyOS, please refer to https://www.cachyos.org.) 
-
-1. File System: You must choose BTRFS as the file system and Snapper as the snapshot manager. This aligns with CachyOS's default recommendation for most systems, and is required for Omarchy to properly function.
-
-2. Shell: You must choose Fish as the default shell for this installation script to work properly. (This is the default CachyOS shell choice.)
-
-3. Desktop Environment to Install: You can install a minimal system with no desktop environment or you can choose to install the CachyOS Hyprland Desktop Environment. If you have CachyOS install Hyprland, it will also install SDDM as the login display manager by default. Do not install GNOME or KDE.
-
-4. Graphics Drivers for NVIDIA users: 
-
-5. This script now automatically handles the NVIDIA driver: if CachyOS already has a working NVIDIA driver installed it leaves it untouched (it never downgrades or force-replaces it); when no driver is present, it installs one via CachyOS `chwd`. Note that the proprietary 580xx-series note from older revisions no longer applies.
-
-   **Important:** 
-
-   To enable hardware video decode via NVDEC in chromium, you must:
-   
-   1. Add the following to `~/.config/chromium-flags.conf`:       ```       --enable-features=VaapiOnNvidiaGPUs       ```
-   2. Install the [enhanced-h264ify extension](https://chromewebstore.google.com/detail/enhanced-h264ify/omkfmpieigblcllmkgbflkikinpkodlk) and disable **VP8** and **AV1** codecs.
-   
-   
-   
-   To fully enable hardware acceleration in Firefox, you must 
-   
-   1. Install the [enhanced-h264ify add-on](https://addons.mozilla.org/en-US/firefox/addon/enhanced-h264ify/) and disable **VP8** and **AV1** codecs and manually add the following overrides to your `user.js`:
-   
-   ```js
-   // FORCE NVIDIA HARDWARE ACCELERATION
-   user_pref("media.hardware-video-decoding.force-enabled", true);
-   user_pref("media.hardware-video-encoding.force-enabled", true);
-   user_pref("layers.acceleration.force-enabled", true);
-   user_pref("webgl.force-enabled", true);
-   user_pref("media.ffmpeg.vaapi.enabled", true);
-   user_pref("media.rdd-ffmpeg.enabled", true);
-   user_pref("media.av1.enabled", true);
-   user_pref("widget.dmabuf.force-enabled", true);
-   user_pref("gfx.x11-egl.force-enabled", true);
-   ```
-
-Other configuration changes are up to you. Note, however, that this script has not been extensively tested on various CachyOS installations other than the author's own machine.
-
-## 5. Installation Instructions
+## Instalación
 
 ```bash
-# Clone the repository
-git clone https://github.com/marlo4220mc/omarchy-on-cachyos.git
+# Cloná este repositorio
+git clone https://github.com/marlo4220mc/omarchy-on-cachyos-es.git
 
-# Navigate to the project directory
-cd omarchy-on-cachyos/bin
+# Entrá a la carpeta
+cd omarchy-on-cachyos-es/bin
 
-# Make the script executable
+# Hacé ejecutable el instalador
 chmod +x install-omarchy-on-cachyos.sh
 
-# Run the installation script
+# Ejecutalo
 ./install-omarchy-on-cachyos.sh
 ```
 
-**Note:** Please review the script contents before running to understand what changes will be made to your system.
+> **Nota:** revisá el contenido del script antes de ejecutarlo para entender qué cambios hará en tu sistema.
 
-## 6. Statement of Lack of Warranty
+El instalador pedirá tu **nombre de usuario** y tu **email** para configurar la instalación y la capa en español.
 
-THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+---
 
-Use this script at your own risk. Always backup your system and important data before running installation scripts.
+## La capa Omarchy en Español
 
-## 7. How to Contribute
+Todo el idioma vive en el repo [`marlo4220mc/omarchy-es`](https://github.com/marlo4220mc/omarchy-es) y se copia a `~/.config/omarchy/` de tu usuario:
 
-We welcome contributions to improve this project! Here's how you can help:
+| Componente | Descripción |
+| --- | --- |
+| `plugins/marlo4220.*` (22) | Plugins de la barra/menú traducidos: audio, bluetooth, monitor, alimentación, clima, reloj, red, bandeja, indicadores, actualización del sistema, agentes, menú, notificaciones, recordatorios, bloqueo, polkit, portapapeles, selector de imágenes, emojis, speedtest, disk-speedtest y OSD. |
+| `extensions/omarchy-menu.jsonc` | Menú principal del launcher (Super+Espacio) en español, con los campos completos para conservar iconos y acciones. |
+| `shell.json` | Configuración de la barra (arriba, anclada al reloj `omarchy.clock`, layout con los plugins en español) y de bloqueo/descanso de pantalla. |
 
-1. **Fork the Repository**: Click the "Fork" button on GitHub to create your own copy
-2. **Create a Feature Branch**: `git checkout -b feature/your-feature-name`
-3. **Make Your Changes**: Implement your improvements or fixes
-4. **Commit Your Changes**: `git commit -m "Add descriptive commit message"`
-5. **Push to Your Fork**: `git push origin feature/your-feature-name`
-6. **Open a Pull Request**: Submit a PR with a clear description of your changes
+Podés volver a aplicar esta capa manualmente en cualquier momento:
 
-### Contribution Guidelines
-- Test your changes thoroughly on CachyOS before submitting
-- Follow existing code style and conventions
-- Update documentation if adding new features
-- Report bugs using GitHub Issues 
+```bash
+git clone https://github.com/marlo4220mc/omarchy-es.git
+cd omarchy-es
+./bootstrap.sh          # copia la capa a ~/.config/omarchy y reinicia el shell
+```
+
+---
+
+## Repositorios involucrados
+
+- [basecamp/omarchy](https://github.com/basecamp/omarchy) — Omarchy original (se instala como base).
+- [`omarchy-on-cachyos-es`](https://github.com/marlo4220mc/omarchy-on-cachyos-es) — **este** instalador.
+- [marlo4220mc/omarchy-es](https://github.com/marlo4220mc/omarchy-es) — capa de idioma en español.
+
+---
+
+## Notas sobre NVIDIA
+
+El instalador **no** degrada ni pinnea ninguna versión de driver: detecta el que CachyOS ya tenga instalado y lo respeta. Solo si no hay ningún driver NVIDIA presente instala uno a través de la herramienta `chwd` de CachyOS.
+
+Para aceleración de hardware (NVDEC) en navegadores:
+
+**Chromium** — agregá a `~/.config/chromium-flags.conf`:
+
+```
+--enable-features=VaapiOnNvidiaGPUs
+```
+
+E instalá [enhanced-h264ify](https://chromewebstore.google.com/detail/enhanced-h264ify/omkfmpieigblcllmkgbflkikinpkodlk) desactivando los codecs **VP8** y **AV1**.
+
+**Firefox** — instalá [enhanced-h264ify](https://addons.mozilla.org/en-US/firefox/addon/enhanced-h264ify/) desactivando **VP8** y **AV1**, y forzá la aceleración en `user.js`:
+
+```js
+user_pref("media.hardware-video-decoding.force-enabled", true);
+user_pref("media.hardware-video-encoding.force-enabled", true);
+user_pref("layers.acceleration.force-enabled", true);
+user_pref("webgl.force-enabled", true);
+user_pref("media.ffmpeg.vaapi.enabled", true);
+user_pref("media.rdd-ffmpeg.enabled", true);
+user_pref("media.av1.enabled", true);
+user_pref("widget.dmabuf.force-enabled", true);
+user_pref("gfx.x11-egl.force-enabled", true);
+```
+
+---
+
+## Solución de problemas
+
+- **La interfaz sigue en inglés después de instalar**: la capa se aplicó sobre el usuario de la instalación. Verificá que `~/.config/omarchy/plugins/marlo4220.*` existan y reiniciá el shell con `omarchy restart shell` (con la sesión desbloqueada).
+- **La instalación corrió como v4 pero la barra no cambia**: confirmá que las variables de NVIDIA (si aplica) fueron escritas en `~/.config/uwsm/env` del *usuario* de escritorio y no en `/root`.
+- Si corregiste los plugins a mano, borrá `~/.config/omarchy/plugins/marlo4220.*` o los `*.bak` antes de volver a aplicar la capa.
+
+---
+
+## Sin garantía
+
+ESTE SOFTWARE SE PROPORCIONA "TAL CUAL", SIN GARANTÍA DE NINGÚN TIPO. Úsalo bajo tu propia responsabilidad; hacé siempre copia de seguridad de tu sistema y de tus datos antes de ejecutar scripts de instalación.
+
+---
+
+## Cómo contribuir
+
+1. **Forkeá** este repositorio.
+2. Creá un branch: `git checkout -b feature/mi-mejora`.
+3. Hacé tus cambios y probálos en CachyOS.
+4. Commit: `git commit -m "Descripción del cambio"`.
+5. Push al fork: `git push origin feature/mi-mejora`.
+6. Abrí un **Pull Request** con una descripción clara.
+
+### Guías
+- Probá los cambios sobre CachyOS antes de enviarlos.
+- Seguí el estilo de código existente.
+- Actualizá la documentación si agregás funcionalidad.
+- Reportá bugs con GitHub Issues.

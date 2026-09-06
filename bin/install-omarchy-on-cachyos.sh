@@ -1,13 +1,15 @@
 #!/bin/bash
-# install-omarchy-on-cachyos.sh — Install Omarchy on CachyOS (v3.x and v4.x)
+# install-omarchy-on-cachyos.sh — Instala Omarchy (con capa en Español/omarchy-es) en CachyOS
 #
-# Supports both Omarchy v3 (source clone) and v4 (pacman packages).
-# Applies CachyOS compatibility patches and boot safety guards.
+# Soporta Omarchy v3.x (clon de fuente) y v4.x (paquetes pacman), aplica los
+# parches de compatibilidad con CachyOS, los guardias de arranque y, al final,
+# la capa de idioma "Omarchy en Español" desde el repo marlo4220mc/omarchy-es.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OMARCHY_DIR="$SCRIPT_DIR/../../omarchy"
+ES_REPO_URL="https://github.com/marlo4220mc/omarchy-es"
 
 # ============================================================================
 # Common prerequisites (v3 and v4)
@@ -200,6 +202,7 @@ fi\
     echo "11. Pinned walker to omarchy repo to prevent CachyOS version conflict"
     echo "12. Allowed CachyOS as an install target (disabled upstream Arch-derivative guard)"
     echo "13. Made installer TTY-independent (stty no longer aborts headless installs)"
+    echo "14. Applied the Omarchy en Español layer (omarchy-es): 22 plugins, menú y barra en español"
     echo ""
     echo "IMPORTANT: If you installed CachyOS without a desktop environment, you will not have a display manager installed."
     echo "If this is the case, you will need to run the following command after this installation script is complete:"
@@ -213,6 +216,12 @@ fi\
     # Run the modified install.sh script
     chmod +x install.sh
     TERM=xterm-256color script -qec './install.sh' /dev/null
+
+    # --- Omarchy en Español (omarchy-es) ---
+    echo ""
+    echo "Aplicando la capa Omarchy en Español (omarchy-es)…"
+    "$SCRIPT_DIR/apply-es-layer.sh" "$ES_REPO_URL" "$OMARCHY_USER_NAME" \
+        || echo "Warning: no se pudo aplicar la capa en español."
 }
 
 # ============================================================================
@@ -344,6 +353,12 @@ APPLYEOF
         sudo -u "$OMARCHY_USER_NAME" cp -af /etc/skel/. "$USER_HOME/"
     fi
 
+    # --- Omarchy en Español (omarchy-es) ---
+    echo ""
+    echo "Aplicando la capa Omarchy en Español (omarchy-es)…"
+    "$SCRIPT_DIR/apply-es-layer.sh" "$ES_REPO_URL" "$OMARCHY_USER_NAME" \
+        || echo "Warning: no se pudo aplicar la capa en español."
+
     # --- SDDM login ---
     # The Omarchy SDDM theme has no username field; it logs in the last user
     # via state.conf. Regex-averse: state.conf must exist and name the user,
@@ -376,6 +391,7 @@ APPLYEOF
     echo "  - Boot safety guards active (mkinitcpio + limine)"
     echo "  - SDDM configured for $OMARCHY_USER_NAME (omarchy.desktop)"
     echo "  - NVIDIA driver configured (CachyOS-aware)"
+    echo "  - Omarchy en Español applied (omarchy-es layer)"
     echo ""
     echo "You may need to reboot for all changes to take effect."
     echo ""
