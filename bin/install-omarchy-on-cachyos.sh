@@ -220,6 +220,10 @@ fi\
     # --- Omarchy en Español (omarchy-es) ---
     echo ""
     echo "Aplicando la capa Omarchy en Español (omarchy-es)…"
+    if [ ! -x "$SCRIPT_DIR/apply-es-layer.sh" ]; then
+        echo "→ apply-es-layer.sh no tiene permiso de ejecución; corrigiendo…"
+        chmod +x "$SCRIPT_DIR/apply-es-layer.sh"
+    fi
     "$SCRIPT_DIR/apply-es-layer.sh" "$ES_REPO_URL" "$OMARCHY_USER_NAME" \
         || echo "Warning: no se pudo aplicar la capa en español."
 }
@@ -356,6 +360,10 @@ APPLYEOF
     # --- Omarchy en Español (omarchy-es) ---
     echo ""
     echo "Aplicando la capa Omarchy en Español (omarchy-es)…"
+    if [ ! -x "$SCRIPT_DIR/apply-es-layer.sh" ]; then
+        echo "→ apply-es-layer.sh no tiene permiso de ejecución; corrigiendo…"
+        chmod +x "$SCRIPT_DIR/apply-es-layer.sh"
+    fi
     "$SCRIPT_DIR/apply-es-layer.sh" "$ES_REPO_URL" "$OMARCHY_USER_NAME" \
         || echo "Warning: no se pudo aplicar la capa en español."
 
