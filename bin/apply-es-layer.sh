@@ -42,7 +42,7 @@ TMP="$(mktemp -d /tmp/omarchy-es.XXXXXX)"
 trap 'rm -rf "$TMP"' EXIT
 
 echo "→ Clonando la capa en español ($ES_REPO_URL)…"
-git clone -q --depth 1 "$ES_REPO_URL" "$TMP/omarchy-es"
+git clone --depth 1 "$ES_REPO_URL" "$TMP/omarchy-es"
 
 DEST="$TARGET_HOME/.config/omarchy"
 mkdir -p "$DEST/plugins" "$DEST/extensions"
@@ -66,10 +66,30 @@ if [ -f "$TMP/omarchy-es/shell.json" ]; then
     cp "$TMP/omarchy-es/shell.json" "$DEST/shell.json"
 fi
 
+# Atajos de teclado en español "en la fuente": se instala un catálogo que
+# re-registra todos los bindings con la misma tecla, modificador, dispatcher y
+# argumento que los defaults, cambiando solo la descripción a español. El menú
+# Super+K sale en español porque hyprctl binds lee la descripción registrada.
+# Se desactivan los defaults para que el catálogo gobierne y no haya duplicados.
+HYPR_DIR="$TARGET_HOME/.config/hypr"
+mkdir -p "$HYPR_DIR"
+echo "→ Instalando el catálogo de atajos en español ($HYPR_DIR/bindings.lua)…"
+if [ -f "$HYPR_DIR/bindings.lua" ] && ! grep -q "Capa omarchy-es" "$HYPR_DIR/bindings.lua" 2>/dev/null; then
+    cp "$HYPR_DIR/bindings.lua" "$HYPR_DIR/bindings.lua.bak.$(date +%s)"
+fi
+cp "$TMP/omarchy-es/hypr/bindings.lua" "$HYPR_DIR/bindings.lua"
+
+if [ -f "$HYPR_DIR/hyprland.lua" ] \
+    && ! grep -q '^omarchy_default_bindings = false' "$HYPR_DIR/hyprland.lua" 2>/dev/null; then
+    echo "→ Activando omarchy_default_bindings = false…"
+    sed -i '1i\omarchy_default_bindings = false' "$HYPR_DIR/hyprland.lua"
+fi
+
 if [ "$AS_ROOT" -eq 1 ]; then
     echo "→ Corrigiendo la propiedad de los archivos…"
     chown -R "$TARGET_USER":"$TARGET_USER" "$DEST/plugins" "$DEST/extensions" 2>/dev/null || true
     chown "$TARGET_USER":"$TARGET_USER" "$DEST/shell.json" "$DEST"/shell.json.bak.* 2>/dev/null || true
+    chown "$TARGET_USER":"$TARGET_USER" "$HYPR_DIR/bindings.lua" "$HYPR_DIR/bindings.lua.bak.*" 2>/dev/null || true
 fi
 
 echo ""
