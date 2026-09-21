@@ -133,6 +133,7 @@ user_pref("gfx.x11-egl.force-enabled", true);
 ## Solución de problemas
 
 - **La interfaz sigue en inglés después de instalar**: la capa se aplicó sobre el usuario de la instalación. Verificá que `~/.config/omarchy/plugins/marlo4220.*` existan y reiniciá el shell con `omarchy restart shell` (con la sesión desbloqueada).
+- **El menú no muestra aplicaciones después de actualizar Omarchy a ≥ 4.0.4**: el scoped-shell de 4.0.4 no inyecta `shell.appLibrary` a los plugins clonados; el plugin del menú (`marlo4220.menu`) ya trae un respaldo que lista las apps directamente desde `DesktopEntries`. Volvé a aplicar la capa para actualizar el plugin (`apply-es-layer.sh … --restart-shell`) o copiá el plugin desde el repo `omarchy-es`.
 - **La instalación corrió como v4 pero la barra no cambia**: confirmá que las variables de NVIDIA (si aplica) fueron escritas en `~/.config/uwsm/env` del *usuario* de escritorio y no en `/root`.
 - Si corregiste los plugins a mano, borrá `~/.config/omarchy/plugins/marlo4220.*` o los `*.bak` antes de volver a aplicar la capa.
 
