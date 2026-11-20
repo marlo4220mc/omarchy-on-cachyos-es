@@ -14,13 +14,16 @@ Omarchy es un escritorio "opinionated" basado en Hyprland que prioriza simplicid
 2. **La capa en español `omarchy-es`**: los **22 plugins** de la barra y el menú traducidos al español (`marlo4220.*`), la **extensión del menú** (`omarchy-menu.jsonc`) y `shell.json` con la barra en español.
 3. Los **guardias de arranque** (mkinitcpio + limine) para no romper el arrancador de CachyOS.
 4. **SDDM** con autologin hacia la sesión `omarchy.desktop`.
-5. Configuración de **NVIDIA** respetuosa con el driver que ya tenga CachyOS (no fuerza ni pinnea ninguna versión).
+5. El **stack gráfico** que corresponda al hardware detectado (AMD, Intel, NVIDIA o ARM) y el **microcode de la CPU**: mesa, Vulkan, VA-API y las librerías de 32 bits solo si multilib está habilitado.
+6. Configuración de **NVIDIA** respetuosa con el driver que ya tenga CachyOS (no fuerza ni pinnea ninguna versión).
+7. Los **ajustes permanentes de CachyOS** (`nvidia.sh` propio, `post-install/pacman.sh` neutralizado, guardias de arranque), que un hook de pacman **restaura después de cada `omarchy update`**.
 
 ---
 
 ## ¿Qué hace el script?
 
 - Detecta y soporta **Omarchy v3** (instalación desde fuente) y **v4** (paquetes pacman).
+- Detecta el **hardware real** antes de instalar: CPU (AMD/Intel) para el microcode, GPU por PCI para mesa/Vulkan/VA-API, y gestor de arranque (limine/GRUB/systemd-boot).
 - Aplica las correcciones de compatibilidad con CachyOS:
   - no pisa `/etc/pacman.conf` ni el mirrorlist (evita el riesgo de `partial upgrade`),
   - no toca el arrancador de CachyOS (limine-snapper-sync) ni recompila el initramfs,
@@ -46,7 +49,11 @@ Instalar primero **CachyOS**, con estas opciones:
 1. **Sistema de archivos**: `BTRFS` + **Snapper** (requerido para que Omarchy funcione).
 2. **Shell**: `Fish` (por defecto en CachyOS).
 3. **Escritorio**: mínimo sin entorno, o el *Hyprland Desktop Environment* de CachyOS. **No** instalar GNOME ni KDE.
-4. Driver gráfico: en equipos NVIDIA que CachyOS ya maneja el driver; en equipos con gráficos integrados (p. ej. AMD) el instalador lo detecta y salta la parte NVIDIA automáticamente.
+4. Driver gráfico: no hace falta elegirlo. El instalador detecta la GPU y arma el stack que corresponde:
+   - **AMD** (incluidas APUs como el Ryzen 5 8600G / Radeon 760M): `mesa`, `vulkan-radeon`, `libva-mesa-driver`, `mesa-vdpau` y `amd-ucode`.
+   - **Intel** (iGPU y Arc): `mesa`, `vulkan-intel`, `intel-media-driver` e `intel-ucode`.
+   - **NVIDIA**: respeta el driver que ya tenga CachyOS y, si no hay ninguno, lo instala con `chwd`.
+   - En cualquier caso instala `linux-firmware` y `vulkan-icd-loader`.
 
 ---
 
@@ -62,9 +69,16 @@ cd omarchy-on-cachyos-es/bin
 # Hacé ejecutable el instalador
 chmod +x install-omarchy-on-cachyos.sh
 
+# (opcional) mirá el estado del sistema antes de instalar
+./install-omarchy-on-cachyos.sh --check
+
 # Ejecutalo
 ./install-omarchy-on-cachyos.sh
 ```
+
+`--check` informa sistema, arquitectura, RAM, espacio libre, sistema de archivos, gestor de arranque, CPU y GPU detectadas, sin tocar nada.
+
+Todo lo que hace la instalación queda en `~/omarchy-on-cachyos-FECHA.log`: si algo falla, ese archivo es lo primero que hay que mirar (o adjuntar al abrir un issue).
 
 > **Nota:** revisá el contenido del script antes de ejecutarlo para entender qué cambios hará en tu sistema.
 
@@ -131,6 +145,11 @@ user_pref("gfx.x11-egl.force-enabled", true);
 ---
 
 ## Solución de problemas
+
+- **Quiero ver el estado del sistema antes de instalar**: `./install-omarchy-on-cachyos.sh --check`.
+- **Algo falló a mitad de la instalación**: revisá `~/omarchy-on-cachyos-*.log`. La instalación es re-ejecutable: podés volver a correr el mismo comando.
+- **Después de un `omarchy update` volvió la configuración de Arch** (drivers NVIDIA de Arch, pacman.conf pisado): el hook `omarchy-cachyos-overrides` lo restaura solo; si querés forzarlo, `sudo omarchy-cachyos-overrides.sh`.
+- **Los mirrors de descarga van lentos**: `./install-omarchy-on-cachyos.sh --fix-mirrors` mide los mirrors y reordena las mirrorlists.
 
 - **La interfaz sigue en inglés después de instalar**: la capa se aplicó sobre el usuario de la instalación. Verificá que `~/.config/omarchy/plugins/marlo4220.*` existan y reiniciá el shell con `omarchy restart shell` (con la sesión desbloqueada).
 - **El menú no muestra aplicaciones después de actualizar Omarchy a ≥ 4.0.4**: el scoped-shell de 4.0.4 no inyecta `shell.appLibrary` a los plugins clonados; el plugin del menú (`marlo4220.menu`) ya trae un respaldo que lista las apps directamente desde `DesktopEntries`. Volvé a aplicar la capa para actualizar el plugin (`apply-es-layer.sh … --restart-shell`) o copiá el plugin desde el repo `omarchy-es`.
