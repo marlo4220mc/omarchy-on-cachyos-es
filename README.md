@@ -50,7 +50,7 @@ Instalar primero **CachyOS**, con estas opciones:
 2. **Shell**: `Fish` (por defecto en CachyOS).
 3. **Escritorio**: mínimo sin entorno, o el *Hyprland Desktop Environment* de CachyOS. **No** instalar GNOME ni KDE.
 4. Driver gráfico: no hace falta elegirlo. El instalador detecta la GPU y arma el stack que corresponde:
-   - **AMD** (incluidas APUs como el Ryzen 5 8600G / Radeon 760M): `mesa`, `vulkan-radeon`, `libva-mesa-driver`, `mesa-vdpau` y `amd-ucode`.
+   - **AMD** (incluidas APUs como el Ryzen 5 8600G / Radeon 760M): `mesa`, `vulkan-radeon`, `libva-mesa-driver` y `amd-ucode` (VA-API vía `libva`; `mesa-vdpau` ya no existe).
    - **Intel** (iGPU y Arc): `mesa`, `vulkan-intel`, `intel-media-driver` e `intel-ucode`.
    - **NVIDIA**: respeta el driver que ya tenga CachyOS y, si no hay ninguno, lo instala con `chwd`.
    - En cualquier caso instala `linux-firmware` y `vulkan-icd-loader`.
